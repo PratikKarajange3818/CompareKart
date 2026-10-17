@@ -1,0 +1,107 @@
+ 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>CompareKart Admin</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <header>
+    <h1>CompareKart Admin</h1>
+    <p>Manage Products</p>
+  </header>
+
+  <main>
+
+    <!-- Admin Login -->
+    <section>
+      <h2>Admin Login</h2>
+
+      <label for="adminKey">Admin Key</label>
+      <input
+        id="adminKey"
+        type="password"
+        placeholder="Enter your admin key"
+        autocomplete="current-password"
+      >
+
+      <button type="button" id="connectBtn">
+        Connect
+      </button>
+    </section>
+
+    <!-- Status Message -->
+    <p id="message" role="status"></p>
+
+    <!-- Add Product Form -->
+    <section>
+      <h2>Add Product</h2>
+
+      <form id="productForm">
+
+        <label for="name">Product Name</label>
+        <input
+          id="name"
+          name="name"
+          type="text"
+          placeholder="Enter product name"
+          required
+        >
+
+        <label for="brand">Brand</label>
+        <input
+          id="brand"
+          name="brand"
+          type="text"
+          placeholder="Enter brand name"
+          required
+        >
+
+        <label for="category">Category</label>
+        <select id="category" name="category" required>
+          <option value="">Choose category</option>
+          <option value="Mobiles">Mobiles</option>
+          <option value="Laptops">Laptops</option>
+          <option value="Audio">Audio</option>
+        </select>
+
+        <label for="price">Price in Rupees</label>
+        <input
+          id="price"
+          name="price"
+          type="number"
+          placeholder="Enter price"
+          min="1"
+          step="0.01"
+          required
+        >
+
+        <button type="submit">Add Product</button>
+
+      </form>
+    </section>
+
+    <!-- Product List -->
+    <section>
+      <h2>Product List</h2>
+      <div id="productList">
+        Connect as admin to load products.
+      </div>
+    </section>
+
+    <p>
+      <a href="/">Back to CompareKart Home</a>
+    </p>
+
+  </main>
+
+  <script src="admin.js"></script>
+
+</body>
+</html>

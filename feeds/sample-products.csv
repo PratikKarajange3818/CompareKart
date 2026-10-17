@@ -1,0 +1,4 @@
+
+name,brand,category,image,store,price,url
+Sample Wireless Mouse,ExampleBrand,Electronics,https://example.com/mouse.jpg,Example Store,599,https://example.com/mouse-product
+Sample Wireless Mouse,ExampleBrand,Electronics,https://example.com/mouse.jpg,Another Store,549,https://example.com/mouse-product-2

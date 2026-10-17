@@ -1,0 +1,641 @@
+
+require("dotenv").config();
+
+const express = require("express");
+const mongoose = require("mongoose");
+const path = require("path");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const Product = require("./models/Product");
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
+
+// ======================================
+// HEALTH CHECK
+// ======================================
+
+app.get("/api/health", (req, res) => {
+    res.json({
+        success: true,
+        message: "CompareKart server is running"
+    });
+});
+
+// ======================================
+// CHECK QUICKCOMMERCE CREDITS
+// ======================================
+
+app.get("/api/check-credits", async (req, res) => {
+    try {
+        const apiKey = process.env.QUICKCOMMERCE_API_KEY;
+
+        if (!apiKey) {
+            return res.status(500).json({
+                success: false,
+                message: "QuickCommerce API key is missing from .env"
+            });
+        }
+
+        const response = await fetch(
+            "https://api.quickcommerceapi.com/v1/credits",
+            {
+                headers: { "X-API-Key": apiKey },
+                signal: AbortSignal.timeout(15000)
+            }
+        );
+
+        const result = await response.json();
+        return res.status(response.status).json(result);
+    } catch (error) {
+        console.error("Credit check error:", error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Could not check QuickCommerce credits."
+        });
+    }
+});
+
+// ======================================
+// GET ALL CATALOGUE PRODUCTS
+// These are saved in MongoDB.
+// ======================================
+
+app.get("/api/products", async (req, res) => {
+    try {
+        const products = await Product.find()
+            .limit(1000)
+            .lean();
+
+        return res.json({
+            success: true,
+            count: products.length,
+            data: products
+        });
+    } catch (error) {
+        console.error("Product fetch error:", error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch products."
+        });
+    }
+});
+
+// ======================================
+// GET ONE PRODUCT
+// ======================================
+
+app.get("/api/products/:id", async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid product ID."
+            });
+        }
+
+        const product = await Product.findById(req.params.id).lean();
+
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                message: "Product not found."
+            });
+        }
+
+        return res.json({
+            success: true,
+            data: product
+        });
+    } catch (error) {
+        console.error("Product detail error:", error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch product."
+        });
+    }
+});
+
+// ======================================
+// ADMIN AUTHENTICATION
+// ======================================
+
+function checkAdminKey(req, res, next) {
+    const correctKey = process.env.ADMIN_KEY;
+    const suppliedKey = req.get("x-admin-key");
+
+    if (!correctKey) {
+        return res.status(500).json({
+            success: false,
+            message: "ADMIN_KEY is missing from .env."
+        });
+    }
+
+    if (!suppliedKey || suppliedKey !== correctKey) {
+        return res.status(401).json({
+            success: false,
+            message: "Invalid admin key."
+        });
+    }
+
+    next();
+}
+
+// ======================================
+// ADMIN: LIST PRODUCTS
+// ======================================
+
+app.get("/api/admin/products", checkAdminKey, async (req, res) => {
+    try {
+        const products = await Product.find()
+            .limit(1000)
+            .lean();
+
+        return res.json(products);
+    } catch (error) {
+        console.error("Admin product list error:", error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to load admin products."
+        });
+    }
+});
+
+// ======================================
+// ADMIN: ADD PRODUCT
+// ======================================
+
+app.post("/api/admin/products", checkAdminKey, async (req, res) => {
+    try {
+        const { name, brand, category, image, offers } = req.body;
+
+        if (
+            typeof name !== "string" || !name.trim() ||
+            typeof brand !== "string" || !brand.trim() ||
+            typeof category !== "string" || !category.trim()
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Name, brand and category are required."
+            });
+        }
+
+        if (offers !== undefined && !Array.isArray(offers)) {
+            return res.status(400).json({
+                success: false,
+                message: "Offers must be an array."
+            });
+        }
+
+        const product = new Product({
+            name: name.trim(),
+            brand: brand.trim(),
+            category: category.trim(),
+            image: typeof image === "string" ? image.trim() : "",
+            offers: offers || []
+        });
+
+        const savedProduct = await product.save();
+
+        return res.status(201).json({
+            success: true,
+            message: "Product added successfully.",
+            data: savedProduct
+        });
+    } catch (error) {
+        console.error("Admin add product error:", error.message);
+
+        return res.status(400).json({
+            success: false,
+            message: "Could not add product."
+        });
+    }
+});
+
+// ======================================
+// ADMIN: DELETE PRODUCT
+// ======================================
+
+app.delete(
+    "/api/admin/products/:id",
+    checkAdminKey,
+    async (req, res) => {
+        try {
+            if (!mongoose.isValidObjectId(req.params.id)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid product ID."
+                });
+            }
+
+            const deletedProduct =
+                await Product.findByIdAndDelete(req.params.id);
+
+            if (!deletedProduct) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Product not found."
+                });
+            }
+
+            return res.json({
+                success: true,
+                message: "Product deleted successfully."
+            });
+        } catch (error) {
+            console.error("Admin delete error:", error.message);
+
+            return res.status(500).json({
+                success: false,
+                message: "Could not delete product."
+            });
+        }
+    }
+);
+
+// ======================================
+// LIVE PRODUCT PRICE COMPARISON
+// ======================================
+
+// Safely convert strings, numbers and objects to readable text.
+function textValue(value) {
+    if (typeof value === "string" || typeof value === "number") {
+        return String(value).trim();
+    }
+
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+        return String(
+            value.name ??
+            value.title ??
+            value.label ??
+            value.display_name ??
+            ""
+        ).trim();
+    }
+
+    return "";
+}
+
+// Convert prices such as "₹1,299" to numbers.
+function positivePrice(value) {
+    if (typeof value === "number") {
+        return Number.isFinite(value) && value > 0 ? value : null;
+    }
+
+    if (typeof value !== "string") {
+        if (value && typeof value === "object") {
+            return positivePrice(
+                value.amount ?? value.value ?? value.price
+            );
+        }
+
+        return null;
+    }
+
+    const cleaned = value.replace(/,/g, "").replace(/[^\d.]/g, "");
+    const parsed = Number(cleaned);
+
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+// Support common API response formats.
+function extractSearchItems(result) {
+    const candidates = [
+        result?.data,
+        result?.data?.products,
+        result?.products,
+        result?.results,
+        result?.items
+    ];
+
+    for (const candidate of candidates) {
+        if (Array.isArray(candidate)) {
+            return candidate;
+        }
+    }
+
+    return [];
+}
+
+// Normalize text for matching.
+function normalizeText(value) {
+    return String(value || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .replace(/\s+/g, " ");
+}
+
+// Common product-type equivalents.
+const SYNONYM_GROUPS = [
+    ["earbud", "earbuds", "earphone", "earphones", "earpiece", "earpieces", "tws"],
+    ["headphone", "headphones", "headset", "headsets"],
+    ["wireless", "bluetooth"],
+    ["mobile", "phone", "phones", "smartphone", "smartphones"],
+    ["laptop", "notebook"],
+    ["shoe", "shoes", "sneaker", "sneakers"],
+    ["television", "tv"],
+    ["refrigerator", "fridge"],
+    ["washing machine", "washer"]
+];
+
+const IGNORED_QUERY_WORDS = new Set([
+    "best", "buy", "price", "compare", "online",
+    "product", "products", "show", "find", "for", "the"
+]);
+
+function getQueryTerms(query) {
+    const normalized = normalizeText(query);
+    const terms = normalized.split(" ").filter(Boolean);
+    const groups = [];
+    const consumed = new Set();
+
+    // Match multi-word categories before individual words.
+    for (const synonymGroup of SYNONYM_GROUPS) {
+        for (const phrase of synonymGroup) {
+            if (phrase.includes(" ") && normalized.includes(phrase)) {
+                groups.push(synonymGroup);
+                phrase.split(" ").forEach(word => consumed.add(word));
+                synonymGroup.forEach(word => {
+                    word.split(" ").forEach(part => consumed.add(part));
+                });
+                break;
+            }
+        }
+    }
+
+    for (const word of terms) {
+        if (consumed.has(word) || IGNORED_QUERY_WORDS.has(word)) {
+            continue;
+        }
+
+        const group = SYNONYM_GROUPS.find(list => list.includes(word));
+
+        if (group) {
+            if (!groups.includes(group)) {
+                groups.push(group);
+            }
+
+            group.forEach(item => {
+                item.split(" ").forEach(part => consumed.add(part));
+            });
+        } else {
+            groups.push([word]);
+            consumed.add(word);
+        }
+    }
+
+    return groups;
+}
+
+// Reject results that do not match the searched product type/terms.
+function isRelevantProduct(query, name, brand) {
+    if (!name || normalizeText(name) === "unknown product") {
+        return false;
+    }
+
+    const searchable = normalizeText(`${name} ${brand || ""}`);
+    const groups = getQueryTerms(query);
+
+    if (!groups.length) {
+        return false;
+    }
+
+    return groups.every(group =>
+        group.some(term => {
+            const normalizedTerm = normalizeText(term);
+            return normalizedTerm &&
+                (` ${searchable} `).includes(` ${normalizedTerm} `);
+        })
+    );
+}
+
+// Treat explicit false/zero availability values as unavailable.
+function isUnavailable(value) {
+    return value === false ||
+        value === 0 ||
+        value === "false" ||
+        value === "out_of_stock" ||
+        value === "unavailable";
+}
+
+app.get("/api/compare-products", async (req, res) => {
+    try {
+        const q = String(req.query.q || "").trim();
+
+        if (!q) {
+            return res.status(400).json({
+                success: false,
+                message: "Enter a product name using ?q=product-name."
+            });
+        }
+
+        if (q.length > 150) {
+            return res.status(400).json({
+                success: false,
+                message: "Search query is too long."
+            });
+        }
+
+        const apiKey = process.env.QUICKCOMMERCE_API_KEY;
+
+        if (!apiKey) {
+            return res.status(500).json({
+                success: false,
+                message: "QuickCommerce API key is missing."
+            });
+        }
+
+        const platforms = ["Amazon", "Flipkart", "Myntra", "Nykaa"];
+
+        const results = await Promise.allSettled(
+            platforms.map(async platform => {
+                const params = new URLSearchParams({
+                    q,
+                    platform,
+                    lat: process.env.SEARCH_LAT || "16.7",
+                    lon: process.env.SEARCH_LON || "74.2"
+                });
+
+                const response = await fetch(
+                    `https://api.quickcommerceapi.com/v1/search?${params.toString()}`,
+                    {
+                        method: "GET",
+                        headers: { "X-API-Key": apiKey },
+                        signal: AbortSignal.timeout(20000)
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        `${platform} API returned HTTP ${response.status}`
+                    );
+                }
+
+                const result = await response.json();
+                const items = extractSearchItems(result);
+
+                return items.map(item => {
+                    const name = textValue(
+                        item?.name ??
+                        item?.title ??
+                        item?.product_name
+                    );
+
+                    const brand = textValue(item?.brand) || "Unknown";
+
+                    const rawPrice =
+                        item?.price ??
+                        item?.offer_price ??
+                        item?.sale_price ??
+                        item?.selling_price ??
+                        item?.final_price ??
+                        item?.mrp;
+
+                    const rawMrp =
+                        item?.mrp ??
+                        item?.original_price ??
+                        item?.list_price ??
+                        rawPrice;
+
+                    const imageValue =
+                        item?.image ??
+                        item?.image_url ??
+                        item?.thumbnail ??
+                        (Array.isArray(item?.images) ? item.images[0] : "");
+
+                    const urlValue =
+                        item?.productUrl ??
+                        item?.product_url ??
+                        item?.deeplink ??
+                        item?.url ??
+                        item?.link ??
+                        "";
+
+                    return {
+                        name,
+                        brand,
+                        image: textValue(imageValue),
+                        price: positivePrice(rawPrice),
+                        mrp: positivePrice(rawMrp),
+                        rating: item?.rating ?? null,
+                        available: item?.available ?? item?.in_stock ?? null,
+                        productUrl: textValue(urlValue),
+                        platform: textValue(item?.platform) || platform,
+                        source: "QuickCommerce API"
+                    };
+                });
+            })
+        );
+
+        const products = [];
+        const marketplaceErrors = [];
+
+        results.forEach((result, index) => {
+            if (result.status === "fulfilled") {
+                products.push(...result.value);
+            } else {
+                marketplaceErrors.push({
+                    platform: platforms[index],
+                    message: result.reason?.message || "Search failed"
+                });
+
+                console.error(
+                    `${platforms[index]} search error:`,
+                    result.reason?.message
+                );
+            }
+        });
+
+        // Filter unavailable, invalid and irrelevant products.
+        const filteredProducts = products.filter(product => {
+            if (isUnavailable(product.available)) return false;
+            if (!product.name || product.price === null) return false;
+
+            return isRelevantProduct(q, product.name, product.brand);
+        });
+
+        // Remove duplicate listings using the product URL.
+        // If the same URL has multiple prices, keep the lowest.
+        const uniqueProducts = new Map();
+
+        for (const product of filteredProducts) {
+            const key = product.productUrl
+                ? product.productUrl.split("?")[0].toLowerCase()
+                : `${normalizeText(product.name)}-${normalizeText(product.platform)}`;
+
+            const existing = uniqueProducts.get(key);
+
+            if (!existing || product.price < existing.price) {
+                uniqueProducts.set(key, product);
+            }
+        }
+
+        // Lowest price first.
+        const comparableProducts = Array.from(uniqueProducts.values())
+            .sort((a, b) => a.price - b.price);
+
+        const bestPrice = comparableProducts.length
+            ? comparableProducts[0].price
+            : null;
+
+        const data = comparableProducts.map((product, index) => ({
+            ...product,
+            bestDeal: product.price === bestPrice,
+            rank: index + 1
+        }));
+
+        return res.json({
+            success: true,
+            query: q,
+            count: data.length,
+            bestPrice,
+            data,
+            marketplaceErrors,
+            message: data.length
+                ? "Matching live results sorted by price."
+                : "No relevant products with valid prices were returned. Try a more specific search."
+        });
+    } catch (error) {
+        console.error("Compare products error:", error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Unable to compare products right now."
+        });
+    }
+});
+
+// ======================================
+// CONNECT TO MONGODB AND START SERVER
+// ======================================
+
+async function startServer() {
+    try {
+        const mongoUri = process.env.MONGODB_URI;
+
+        if (!mongoUri) {
+            throw new Error("MONGODB_URI is missing from .env.");
+        }
+
+        await mongoose.connect(mongoUri);
+
+        console.log("Connected to MongoDB successfully");
+
+        app.listen(PORT, () => {
+            console.log(`CompareKart running at http://localhost:${PORT}`);
+            console.log(`Admin panel: http://localhost:${PORT}/admin.html`);
+        });
+    } catch (error) {
+        console.error("Could not start CompareKart:", error.message);
+        process.exit(1);
+    }
+}
+
+startServer();

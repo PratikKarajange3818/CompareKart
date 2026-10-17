@@ -1,0 +1,182 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101828">
+  <meta name="description" content="Compare product prices across available online marketplaces with CompareKart.">
+  <title>CompareKart — Find the Best Price</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/script.js" defer></script>
+</head>
+<body>
+  <header class="navbar">
+    <a class="brand" href="/" aria-label="CompareKart home">
+      <span class="brand-icon">C</span>
+      <span>Compare<span class="brand-accent">Kart</span></span>
+    </a>
+
+    <nav class="nav-links" aria-label="Main navigation">
+      <a class="nav-link active" href="#home">Home</a>
+      <a class="nav-link" href="#comparison">Compare Prices</a>
+      <a class="nav-link" href="#how-it-works">How It Works</a>
+    </nav>
+
+    <a class="admin-link" href="/admin.html">
+      <span>Admin</span>
+      <span aria-hidden="true">↗</span>
+    </a>
+  </header>
+
+  <main>
+    <section class="hero" id="home">
+      <div class="hero-glow hero-glow-one"></div>
+      <div class="hero-glow hero-glow-two"></div>
+
+      <div class="hero-content">
+        <div class="eyebrow">
+          <span class="live-dot"></span>
+          SMARTER SHOPPING STARTS HERE
+        </div>
+
+        <h1>Find your product.<br>Get the <span>best price.</span></h1>
+
+        <p class="hero-description">
+          Compare available deals across online marketplaces and make
+          smarter buying decisions without checking every store yourself.
+        </p>
+
+        <form id="live-search-form" class="search-form">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input
+            id="live-query"
+            name="query"
+            type="search"
+            placeholder="Search phones, headphones, shoes..."
+            autocomplete="off"
+            required
+            maxlength="150"
+            aria-label="Search for a product"
+          >
+          <button class="btn btn-primary search-button" type="submit">
+            <span class="button-label">Compare Prices</span>
+            <span aria-hidden="true">→</span>
+          </button>
+        </form>
+
+        <div class="popular-searches">
+          <span>Try searching:</span>
+          <button class="suggestion-chip" type="button" data-query="wireless earbuds">Wireless earbuds</button>
+          <button class="suggestion-chip" type="button" data-query="smartphone">Smartphones</button>
+          <button class="suggestion-chip" type="button" data-query="running shoes">Running shoes</button>
+        </div>
+
+        <div class="trust-points">
+          <span><span class="check-icon">✓</span> Live search results</span>
+          <span><span class="check-icon">✓</span> Lowest-price highlight</span>
+          <span><span class="check-icon">✓</span> Direct store links</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="platform-strip" aria-label="Supported marketplaces">
+      <p>COMPARE AVAILABLE OFFERS FROM</p>
+      <div class="platform-list">
+        <span class="platform-name amazon">amazon</span>
+        <span class="platform-name flipkart">Flipkart</span>
+        <span class="platform-name myntra">Myntra</span>
+        <span class="platform-name nykaa">nykaa</span>
+        <span class="platform-name other">Other available stores</span>
+      </div>
+      <p class="platform-note">Actual stores depend on the results returned by the API.</p>
+    </section>
+
+    <section class="comparison-section" id="comparison">
+      <div class="section-heading">
+        <div>
+          <div class="section-kicker">LIVE PRICE DISCOVERY</div>
+          <h2>Compare before you buy.</h2>
+          <p>Search for a product to see current offers returned by the API.</p>
+        </div>
+        <div class="live-status">
+          <span class="live-dot"></span>
+          Live search
+        </div>
+      </div>
+
+      <div class="results-toolbar">
+        <div>
+          <h3 id="results-heading">Your search results</h3>
+          <p id="results-count">Search to compare available prices.</p>
+        </div>
+
+        <label class="sort-control">
+          <span>Sort by</span>
+          <select id="sort-price" aria-label="Sort products by price">
+            <option value="low">Price: Low to High</option>
+            <option value="high">Price: High to Low</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="comparison-summary" class="comparison-summary hidden"></div>
+      <p id="live-search-status" class="status-message" role="status" aria-live="polite"></p>
+
+      <div id="live-products" class="product-grid">
+        <div class="empty-state initial-state">
+          <div class="empty-icon">⌕</div>
+          <h3>What are you looking for?</h3>
+          <p>Enter a product name above to compare available prices across marketplaces.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="how-section" id="how-it-works">
+      <div class="section-heading centered-heading">
+        <div>
+          <div class="section-kicker">SIMPLE. SMART. CONVENIENT.</div>
+          <h2>Shopping made simpler.</h2>
+          <p>Three simple steps to find a better deal.</p>
+        </div>
+      </div>
+
+      <div class="steps-grid">
+        <article class="step-card">
+          <div class="step-number">01</div>
+          <div class="step-icon">⌕</div>
+          <h3>Search a product</h3>
+          <p>Enter the name of the product you want to purchase.</p>
+        </article>
+        <article class="step-card">
+          <div class="step-number">02</div>
+          <div class="step-icon">↔</div>
+          <h3>Compare offers</h3>
+          <p>Review the available prices returned from the connected API.</p>
+        </article>
+        <article class="step-card">
+          <div class="step-number">03</div>
+          <div class="step-icon">↗</div>
+          <h3>Visit the store</h3>
+          <p>Open a valid product link and confirm the final price with the seller.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <a class="brand footer-brand" href="#home">
+      <span class="brand-icon">C</span>
+      <span>Compare<span class="brand-accent">Kart</span></span>
+    </a>
+    <p>Compare smarter. Shop with confidence.</p>
+    <p class="footer-disclaimer">
+      Prices and availability can change. Always verify the final price on the seller's website.
+    </p>
+    <span class="copyright">© <span id="current-year"></span> CompareKart</span>
+  </footer>
+</body>
+</html>
