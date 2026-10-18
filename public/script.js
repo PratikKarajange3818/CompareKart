@@ -10,10 +10,102 @@ const resultsCount = document.getElementById("results-count");
 const summaryContainer = document.getElementById("comparison-summary");
 const sortSelect = document.getElementById("sort-price");
 const searchButton = searchForm.querySelector('button[type="submit"]');
+const chatbotToggle = document.getElementById("chatbot-toggle");
+const chatbotPanel = document.getElementById("chatbot-panel");
+const chatbotClose = document.getElementById("chatbot-close");
+const chatbotForm = document.getElementById("chatbot-form");
+const chatbotQuestion = document.getElementById("chatbot-question");
+const chatbotMessages = document.getElementById("chatbot-messages");
+const chatbotSend = document.getElementById("chatbot-send");
 
 let currentProducts = [];
 let currentQuery = "";
 let activeController = null;
+
+function addChatbotMessage(label, text, type) {
+  const message = document.createElement("div");
+  message.className = `chatbot-message chatbot-message-${type}`;
+
+  const heading = document.createElement("strong");
+  heading.textContent = label;
+
+  const content = document.createElement("p");
+  content.textContent = text;
+
+  message.append(heading, content);
+  chatbotMessages.appendChild(message);
+  chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+  return message;
+}
+
+function setChatbotOpen(isOpen) {
+  chatbotPanel.hidden = !isOpen;
+  chatbotToggle.setAttribute("aria-expanded", String(isOpen));
+
+  if (isOpen) {
+    chatbotQuestion.focus();
+  }
+}
+
+chatbotToggle.addEventListener("click", () => {
+  setChatbotOpen(chatbotPanel.hidden);
+});
+
+chatbotClose.addEventListener("click", () => {
+  setChatbotOpen(false);
+});
+
+document.querySelectorAll("[data-chat-question]").forEach(button => {
+  button.addEventListener("click", () => {
+    chatbotQuestion.value = button.dataset.chatQuestion || "";
+    chatbotQuestion.focus();
+  });
+});
+
+chatbotForm.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const question = chatbotQuestion.value.trim();
+
+  if (!question) return;
+
+  addChatbotMessage("You", question, "user");
+  chatbotQuestion.value = "";
+  chatbotSend.disabled = true;
+  chatbotSend.textContent = "Sending...";
+
+  try {
+    const response = await fetch("/api/gemini-chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ question })
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.message || `Request failed with HTTP ${response.status}.`);
+    }
+
+    if (typeof data.answer !== "string" || !data.answer.trim()) {
+      throw new Error("Gemini returned an empty answer.");
+    }
+
+    addChatbotMessage("Gemini", data.answer.trim(), "assistant");
+  } catch (error) {
+    addChatbotMessage(
+      "Error",
+      error.message || "Could not get a reply. Please try again.",
+      "error"
+    );
+  } finally {
+    chatbotSend.disabled = false;
+    chatbotSend.textContent = "Send";
+    chatbotQuestion.focus();
+  }
+});
 
 document.getElementById("current-year").textContent =
   new Date().getFullYear();

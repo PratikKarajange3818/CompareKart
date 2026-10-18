@@ -17,17 +17,18 @@ app.use(express.static(path.join(__dirname, "public")));
 // HEALTH CHECK
 // ======================================
 
-app.get("/api/health", (req, res) => {
+ app.get("/api/health", (req, res) => {
     res.json({
         success: true,
-        message: "CompareKart server is running"
+        message: "CompareKart server is running",
+        geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+        quickCommerceConfigured: Boolean(process.env.QUICKCOMMERCE_API_KEY)
     });
 });
-
-// ======================================
-// CHECK QUICKCOMMERCE CREDITS
-// ======================================
-
+ 
+ 
+  
+ // CHECK QUICKCOMMERCE CREDITS
 app.get("/api/check-credits", async (req, res) => {
     try {
         const apiKey = process.env.QUICKCOMMERCE_API_KEY;
@@ -42,12 +43,15 @@ app.get("/api/check-credits", async (req, res) => {
         const response = await fetch(
             "https://api.quickcommerceapi.com/v1/credits",
             {
-                headers: { "X-API-Key": apiKey },
+                headers: {
+                    "X-API-Key": apiKey
+                },
                 signal: AbortSignal.timeout(15000)
             }
         );
 
         const result = await response.json();
+
         return res.status(response.status).json(result);
     } catch (error) {
         console.error("Credit check error:", error.message);
@@ -58,6 +62,102 @@ app.get("/api/check-credits", async (req, res) => {
         });
     }
 });
+
+// ======================================
+// GEMINI AI CHAT
+// ======================================
+
+app.post("/api/gemini-chat", async (req, res) => {
+    const question = req.body?.question;
+
+    if (typeof question !== "string" || !question.trim()) {
+        return res.status(400).json({
+            success: false,
+            message: "Question must be a non-empty string."
+        });
+    }
+
+    const trimmedQuestion = question.trim();
+
+    if (trimmedQuestion.length > 2000) {
+        return res.status(400).json({
+            success: false,
+            message: "Question is too long. Please keep it under 2000 characters."
+        });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+        return res.status(503).json({
+            success: false,
+            message: "Gemini is not configured on the server."
+        });
+    }
+
+    try {
+        const response = await fetch(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": apiKey
+                },
+                body: JSON.stringify({
+                    contents: [
+                        {
+                            parts: [{ text: trimmedQuestion }]
+                        }
+                    ]
+                }),
+                signal: AbortSignal.timeout(60000)
+            }
+        );
+
+        if (!response.ok) {
+            console.error("Gemini API request failed with status:", response.status);
+
+            return res.status(502).json({
+                success: false,
+                message: "Gemini could not process the request right now."
+            });
+        }
+
+        const result = await response.json();
+        const answer = result.candidates?.[0]?.content?.parts
+            ?.map(part => part.text)
+            .filter(text => typeof text === "string")
+            .join("")
+            .trim();
+
+        if (!answer) {
+            console.error("Gemini API returned no answer.");
+
+            return res.status(502).json({
+                success: false,
+                message: "Gemini returned no answer."
+            });
+        }
+
+        return res.json({ answer });
+    } catch (error) {
+        if (error?.name === "TimeoutError" || error?.name === "AbortError") {
+            return res.status(504).json({
+                success: false,
+                message: "Gemini took too long to respond. Please try again."
+            });
+        }
+
+        console.error("Gemini chat error:", error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Could not contact Gemini right now."
+        });
+    }
+});
+
 
 // ======================================
 // GET ALL CATALOGUE PRODUCTS

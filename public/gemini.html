@@ -1,0 +1,193 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CompareKart AI Assistant</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: Arial, sans-serif;
+      background: #f3f6fb;
+      color: #202938;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 30px auto;
+      padding: 24px;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 4px 20px #00000010;
+    }
+
+    h1 {
+      color: #2457d6;
+      margin-top: 0;
+    }
+
+    #messages {
+      min-height: 180px;
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 14px;
+      background: #f8faff;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      white-space: pre-wrap;
+    }
+
+    .message {
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      line-height: 1.5;
+    }
+
+    .user {
+      background: #e3ecff;
+    }
+
+    .assistant {
+      background: #e7f7ed;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 90px;
+      padding: 12px;
+      border: 1px solid #ccd3df;
+      border-radius: 8px;
+      font: inherit;
+      resize: vertical;
+    }
+
+    button {
+      margin-top: 12px;
+      padding: 12px 20px;
+      border: 0;
+      border-radius: 8px;
+      background: #2457d6;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    #status {
+      color: #586579;
+      margin-top: 12px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #2457d6;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <a class="back-link" href="/">← Back to CompareKart</a>
+
+    <h1>CompareKart AI Assistant</h1>
+    <p>Ask Gemini for help with shopping and product comparisons.</p>
+
+    <div id="messages" aria-live="polite">
+      Welcome! Ask me a shopping-related question.
+    </div>
+
+    <form id="chatForm">
+      <label for="question">Your question</label>
+      <textarea
+        id="question"
+        placeholder="Example: What should I compare before buying a laptop?"
+        required
+      ></textarea>
+
+      <button id="sendButton" type="submit">Ask Gemini</button>
+    </form>
+
+    <p id="status"></p>
+  </main>
+
+  <script>
+    const form = document.getElementById("chatForm");
+    const questionInput = document.getElementById("question");
+    const messages = document.getElementById("messages");
+    const status = document.getElementById("status");
+    const sendButton = document.getElementById("sendButton");
+
+    function addMessage(label, text, className) {
+      const item = document.createElement("div");
+      item.className = "message " + className;
+
+      const heading = document.createElement("strong");
+      heading.textContent = label + ": ";
+
+      const content = document.createElement("span");
+      content.textContent = text;
+
+      item.appendChild(heading);
+      item.appendChild(content);
+      messages.appendChild(item);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+
+      const question = questionInput.value.trim();
+
+      if (!question) {
+        return;
+      }
+
+      addMessage("You", question, "user");
+      questionInput.value = "";
+      sendButton.disabled = true;
+      status.textContent = "Waiting for Gemini...";
+
+      try {
+        const response = await fetch("/api/gemini-chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ question })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Gemini request failed.");
+        }
+
+        addMessage(
+          "Gemini",
+          data.answer || "No answer was returned.",
+          "assistant"
+        );
+
+        status.textContent = "Reply received.";
+      } catch (error) {
+        status.textContent = "Could not get a reply: " + error.message;
+      } finally {
+        sendButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
