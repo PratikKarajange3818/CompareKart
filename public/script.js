@@ -8,6 +8,7 @@ const statusMessage = document.getElementById("live-search-status");
 const resultsHeading = document.getElementById("results-heading");
 const resultsCount = document.getElementById("results-count");
 const summaryContainer = document.getElementById("comparison-summary");
+const comparisonSection = document.getElementById("comparison");
 const sortSelect = document.getElementById("sort-price");
 const searchButton = searchForm.querySelector('button[type="submit"]');
 const chatbotToggle = document.getElementById("chatbot-toggle");
@@ -661,6 +662,10 @@ async function searchProducts(query) {
     currentProducts = normalizeProducts(payload);
 
     renderProducts();
+    comparisonSection.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
 
     if (currentProducts.length > 0) {
       showStatus(

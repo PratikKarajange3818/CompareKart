@@ -49,10 +49,7 @@ async function loadProducts() {
 
   products.forEach((product) => {
     const card = document.createElement("div");
-    card.style.background = "white";
-    card.style.padding = "15px";
-    card.style.margin = "12px 0";
-    card.style.borderRadius = "8px";
+    card.className = "catalogue-card";
 
     const title = document.createElement("h3");
     title.textContent = product.name;
@@ -75,7 +72,7 @@ async function loadProducts() {
 
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "Delete Product";
-    deleteButton.style.background = "#dc2626";
+    deleteButton.className = "admin-button danger-admin-button";
 
     deleteButton.addEventListener("click", async () => {
       if (!confirm("Delete " + product.name + "?")) {

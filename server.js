@@ -97,27 +97,54 @@ app.post("/api/gemini-chat", async (req, res) => {
     }
 
     try {
-        const response = await fetch(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": apiKey
-                },
-                body: JSON.stringify({
-                    contents: [
-                        {
-                            parts: [{ text: trimmedQuestion }]
-                        }
-                    ]
-                }),
-                signal: AbortSignal.timeout(60000)
+        const requestBody = JSON.stringify({
+            contents: [
+                {
+                    parts: [{ text: trimmedQuestion }]
+                }
+            ]
+        });
+        let response;
+
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            response = await fetch(
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": apiKey
+                    },
+                    body: requestBody,
+                    signal: AbortSignal.timeout(60000)
+                }
+            );
+
+            if (response.ok || ![429, 503].includes(response.status) || attempt === 2) {
+                break;
             }
-        );
+
+            await new Promise(resolve => {
+                setTimeout(resolve, 1500 * (attempt + 1));
+            });
+        }
 
         if (!response.ok) {
-            console.error("Gemini API request failed with status:", response.status);
+            const upstreamError = await response.json().catch(() => ({}));
+            const upstreamMessage = upstreamError.error?.message || "";
+
+            console.error(
+                "Gemini API request failed:",
+                response.status,
+                upstreamMessage
+            );
+
+            if (response.status === 429 || response.status === 503) {
+                return res.status(503).json({
+                    success: false,
+                    message: "Gemini is temporarily busy. Please try again in a moment."
+                });
+            }
 
             return res.status(502).json({
                 success: false,

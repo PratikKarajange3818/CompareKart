@@ -10,94 +10,108 @@
   <link rel="stylesheet" href="style.css">
 </head>
 
-<body>
+<body class="admin-page">
 
-  <header>
-    <h1>CompareKart Admin</h1>
-    <p>Manage Products</p>
+  <header class="admin-header">
+    <div class="admin-header-inner">
+      <a class="brand admin-brand" href="/" aria-label="CompareKart home">
+        <span class="brand-icon">C</span>
+        <span>Compare<span class="brand-accent">Kart</span></span>
+      </a>
+      <div class="admin-heading">
+        <span class="admin-eyebrow">CONTROL CENTER</span>
+        <h1>Product management</h1>
+        <p>Keep the CompareKart catalogue accurate and up to date.</p>
+      </div>
+      <a class="admin-home-link" href="/">View storefront <span aria-hidden="true">→</span></a>
+    </div>
   </header>
 
-  <main>
+  <main class="admin-main">
 
     <!-- Admin Login -->
-    <section>
-      <h2>Admin Login</h2>
+    <section class="admin-panel login-panel">
+      <div class="panel-heading">
+        <span class="panel-icon">♙</span>
+        <div>
+          <span class="panel-kicker">SECURE ACCESS</span>
+          <h2>Admin login</h2>
+          <p>Connect with your administrator key to manage catalogue products.</p>
+        </div>
+      </div>
 
-      <label for="adminKey">Admin Key</label>
-      <input
-        id="adminKey"
-        type="password"
-        placeholder="Enter your admin key"
-        autocomplete="current-password"
-      >
-
-      <button type="button" id="connectBtn">
-        Connect
-      </button>
-    </section>
-
-    <!-- Status Message -->
-    <p id="message" role="status"></p>
-
-    <!-- Add Product Form -->
-    <section>
-      <h2>Add Product</h2>
-
-      <form id="productForm">
-
-        <label for="name">Product Name</label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          placeholder="Enter product name"
-          required
-        >
-
-        <label for="brand">Brand</label>
-        <input
-          id="brand"
-          name="brand"
-          type="text"
-          placeholder="Enter brand name"
-          required
-        >
-
-        <label for="category">Category</label>
-        <select id="category" name="category" required>
-          <option value="">Choose category</option>
-          <option value="Mobiles">Mobiles</option>
-          <option value="Laptops">Laptops</option>
-          <option value="Audio">Audio</option>
-        </select>
-
-        <label for="price">Price in Rupees</label>
-        <input
-          id="price"
-          name="price"
-          type="number"
-          placeholder="Enter price"
-          min="1"
-          step="0.01"
-          required
-        >
-
-        <button type="submit">Add Product</button>
-
-      </form>
-    </section>
-
-    <!-- Product List -->
-    <section>
-      <h2>Product List</h2>
-      <div id="productList">
-        Connect as admin to load products.
+      <div class="login-controls">
+        <div class="field">
+          <label for="adminKey">Admin key</label>
+          <input id="adminKey" type="password" placeholder="Enter your admin key" autocomplete="current-password">
+        </div>
+        <button class="admin-button primary-admin-button" type="button" id="connectBtn">Connect <span aria-hidden="true">→</span></button>
       </div>
     </section>
 
-    <p>
-      <a href="/">Back to CompareKart Home</a>
-    </p>
+    <p id="message" class="admin-message" role="status"></p>
+
+    <div class="admin-grid">
+      <!-- Add Product Form -->
+      <section class="admin-panel product-form-panel">
+        <div class="panel-heading">
+          <span class="panel-icon blue-panel-icon">+</span>
+          <div>
+            <span class="panel-kicker">CATALOGUE</span>
+            <h2>Add product</h2>
+            <p>Create a product entry for comparison results.</p>
+          </div>
+        </div>
+
+        <form id="productForm" class="product-form">
+
+          <div class="field">
+            <label for="name">Product name</label>
+            <input id="name" name="name" type="text" placeholder="Enter product name" required>
+          </div>
+
+          <div class="field">
+            <label for="brand">Brand</label>
+            <input id="brand" name="brand" type="text" placeholder="Enter brand name" required>
+          </div>
+
+          <div class="field">
+            <label for="category">Category</label>
+            <select id="category" name="category" required>
+              <option value="">Choose category</option>
+              <option value="Mobiles">Mobiles</option>
+              <option value="Laptops">Laptops</option>
+              <option value="Audio">Audio</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="price">Price in rupees</label>
+            <input id="price" name="price" type="number" placeholder="Enter price" min="1" step="0.01" required>
+          </div>
+
+          <button class="admin-button primary-admin-button" type="submit">Add product <span aria-hidden="true">+</span></button>
+
+        </form>
+      </section>
+
+      <!-- Product List -->
+      <section class="admin-panel product-list-panel">
+        <div class="panel-heading list-heading">
+          <div>
+            <span class="panel-kicker">INVENTORY</span>
+            <h2>Product list</h2>
+            <p>Review and remove catalogue products.</p>
+          </div>
+          <span class="inventory-badge">Live catalogue</span>
+        </div>
+        <div id="productList" class="product-list">
+          Connect as admin to load products.
+        </div>
+      </section>
+    </div>
+
+    <a class="back-home-link" href="/">← Back to CompareKart home</a>
 
   </main>
 
