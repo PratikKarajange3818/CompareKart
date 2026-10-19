@@ -855,8 +855,25 @@ async function startServer() {
     }
 }
 
+async function vercelHandler(req, res) {
+    try {
+        await connectDatabase();
+        return app(req, res);
+    } catch (error) {
+        console.error("Could not connect to MongoDB:", error.message);
+        return res.status(500).json({
+            success: false,
+            message: "The database is unavailable."
+        });
+    }
+}
+
 if (require.main === module) {
     startServer();
 }
 
-module.exports = { app, connectDatabase, startServer };
+vercelHandler.app = app;
+vercelHandler.connectDatabase = connectDatabase;
+vercelHandler.startServer = startServer;
+
+module.exports = vercelHandler;
