@@ -8,6 +8,7 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const Product = require("./models/Product");
+let databaseConnection;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -445,10 +446,46 @@ const SYNONYM_GROUPS = [
     ["washing machine", "washer"]
 ];
 
+const PRODUCT_TYPE_GROUPS = [
+    ["shirt", "shirts", "t shirt", "t shirts", "tshirt", "tshirts"],
+    ["bra", "bras", "brassiere"],
+    ["top", "tops"],
+    ["dress", "dresses"],
+    ["trouser", "trousers", "pant", "pants", "jeans"],
+    ["underwear", "underwears", "brief", "briefs"],
+    ["laptop", "notebook"],
+    ["phone", "phones", "mobile", "smartphone", "smartphones"],
+    ["earbud", "earbuds", "earphone", "earphones", "tws"],
+    ["headphone", "headphones", "headset", "headsets"],
+    ["shoe", "shoes", "sneaker", "sneakers"],
+    ["television", "tv"],
+    ["refrigerator", "fridge"],
+    ["washing machine", "washer"]
+];
+
+const NON_PRODUCT_TYPE_TERMS = [
+    "bag", "bags", "case", "cases", "cover", "covers",
+    "sleeve", "sleeves", "stand", "stands", "charger",
+    "cable", "cables", "accessory", "accessories"
+];
+
 const IGNORED_QUERY_WORDS = new Set([
     "best", "buy", "price", "compare", "online",
     "product", "products", "show", "find", "for", "the"
 ]);
+
+function containsTerm(text, term) {
+    const normalizedTerm = normalizeText(term);
+    if (!normalizedTerm) return false;
+
+    const variants = normalizedTerm.endsWith("s")
+        ? [normalizedTerm, normalizedTerm.slice(0, -1)]
+        : [normalizedTerm, `${normalizedTerm}s`];
+
+    return variants.some(variant =>
+        (` ${text} `).includes(` ${variant} `)
+    );
+}
 
 function getQueryTerms(query) {
     const normalized = normalizeText(query);
@@ -494,25 +531,67 @@ function getQueryTerms(query) {
     return groups;
 }
 
-// Reject results that do not match the searched product type/terms.
-function isRelevantProduct(query, name, brand) {
-    if (!name || normalizeText(name) === "unknown product") {
+function getProductTypeGroups(query) {
+    const normalizedQuery = normalizeText(query);
+
+    return PRODUCT_TYPE_GROUPS.filter(group =>
+        group.some(term => containsTerm(normalizedQuery, term))
+    );
+}
+
+// Product type is checked using name/category fields, not description alone.
+function isRelevantProduct(query, product) {
+    if (!product.name || normalizeText(product.name) === "unknown product") {
         return false;
     }
 
-    const searchable = normalizeText(`${name} ${brand || ""}`);
-    const groups = getQueryTerms(query);
+    const name = normalizeText(product.name);
+    const category = normalizeText(product.category);
+    const productTypeText = normalizeText(
+        `${product.name} ${product.category} ${product.productType || ""}`
+    );
+    const searchable = normalizeText([
+        product.name,
+        product.brand,
+        product.category,
+        product.color,
+        product.model,
+        product.size,
+        product.description
+    ].join(" "));
+    const queryGroups = getQueryTerms(query);
+    const productTypeGroups = getProductTypeGroups(query);
 
-    if (!groups.length) {
+    if (!queryGroups.length) {
         return false;
     }
 
-    return groups.every(group =>
-        group.some(term => {
-            const normalizedTerm = normalizeText(term);
-            return normalizedTerm &&
-                (` ${searchable} `).includes(` ${normalizedTerm} `);
-        })
+    if (productTypeGroups.length &&
+        !productTypeGroups.every(group =>
+            group.some(term => containsTerm(productTypeText, term))
+        )) {
+        return false;
+    }
+
+    // Reject explicit conflicting types, such as "T-Shirt Bra" for "shirt".
+    if (productTypeGroups.length &&
+        PRODUCT_TYPE_GROUPS.some(group =>
+            group.some(term => containsTerm(`${name} ${category}`, term)) &&
+            !group.some(term => containsTerm(normalizeText(query), term))
+        )) {
+        return false;
+    }
+
+    if (productTypeGroups.length &&
+        NON_PRODUCT_TYPE_TERMS.some(term =>
+            containsTerm(`${name} ${category}`, term) &&
+            !containsTerm(normalizeText(query), term)
+        )) {
+        return false;
+    }
+
+    return queryGroups.every(group =>
+        group.some(term => containsTerm(searchable, term))
     );
 }
 
@@ -621,6 +700,25 @@ app.get("/api/compare-products", async (req, res) => {
                     return {
                         name,
                         brand,
+                        category: textValue(
+                            item?.category ??
+                            item?.subcategory ??
+                            item?.product_type ??
+                            item?.productType
+                        ),
+                        color: textValue(
+                            item?.color ??
+                            item?.colour ??
+                            item?.attributes?.color ??
+                            item?.attributes?.colour
+                        ),
+                        model: textValue(
+                            item?.model ??
+                            item?.model_name ??
+                            item?.modelNumber
+                        ),
+                        size: textValue(item?.size ?? item?.attributes?.size),
+                        description: textValue(item?.description),
                         image: textValue(imageValue),
                         price: positivePrice(rawPrice),
                         mrp: positivePrice(rawMrp),
@@ -658,7 +756,7 @@ app.get("/api/compare-products", async (req, res) => {
             if (isUnavailable(product.available)) return false;
             if (!product.name || product.price === null) return false;
 
-            return isRelevantProduct(q, product.name, product.brand);
+            return isRelevantProduct(q, product);
         });
 
         // Remove duplicate listings using the product URL.
@@ -700,7 +798,7 @@ app.get("/api/compare-products", async (req, res) => {
             marketplaceErrors,
             message: data.length
                 ? "Matching live results sorted by price."
-                : "No relevant products with valid prices were returned. Try a more specific search."
+                : "No exact matching products found."
         });
     } catch (error) {
         console.error("Compare products error:", error.message);
@@ -716,17 +814,36 @@ app.get("/api/compare-products", async (req, res) => {
 // CONNECT TO MONGODB AND START SERVER
 // ======================================
 
+function connectDatabase() {
+    if (mongoose.connection.readyState === 1) {
+        return Promise.resolve();
+    }
+
+    if (databaseConnection) {
+        return databaseConnection;
+    }
+
+    const mongoUri = process.env.MONGODB_URI;
+
+    if (!mongoUri) {
+        return Promise.reject(new Error("MONGODB_URI is missing from .env."));
+    }
+
+    databaseConnection = mongoose.connect(mongoUri)
+        .then(() => {
+            console.log("Connected to MongoDB successfully");
+        })
+        .catch((error) => {
+            databaseConnection = undefined;
+            throw error;
+        });
+
+    return databaseConnection;
+}
+
 async function startServer() {
     try {
-        const mongoUri = process.env.MONGODB_URI;
-
-        if (!mongoUri) {
-            throw new Error("MONGODB_URI is missing from .env.");
-        }
-
-        await mongoose.connect(mongoUri);
-
-        console.log("Connected to MongoDB successfully");
+        await connectDatabase();
 
         app.listen(PORT, () => {
             console.log(`CompareKart running at http://localhost:${PORT}`);
@@ -738,4 +855,8 @@ async function startServer() {
     }
 }
 
-startServer();
+if (require.main === module) {
+    startServer();
+}
+
+module.exports = { app, connectDatabase, startServer };

@@ -258,50 +258,92 @@ function getSearchTerms(query) {
     .filter(term => term.length > 1 && !ignored.has(term));
 }
 
-// Reject obvious mismatches instead of displaying unrelated products.
- 
-function matchesSearchQuery(title, query) {
-  const product = normalizeText(title);
+const productTypeGroups = [
+  ["shirt", "shirts", "t shirt", "t shirts", "tshirt", "tshirts"],
+  ["bra", "bras", "brassiere"],
+  ["top", "tops"],
+  ["dress", "dresses"],
+  ["trouser", "trousers", "pant", "pants", "jeans"],
+  ["underwear", "underwears", "brief", "briefs"],
+  ["laptop", "notebook"],
+  ["phone", "phones", "mobile", "smartphone", "smartphones"],
+  ["earbud", "earbuds", "earphone", "earphones", "tws"],
+  ["headphone", "headphones", "headset", "headsets"],
+  ["shoe", "shoes", "sneaker", "sneakers"],
+  ["television", "tv"],
+  ["refrigerator", "fridge"],
+  ["washing machine", "washer"]
+];
+
+const nonProductTypeTerms = [
+  "bag", "bags", "case", "cases", "cover", "covers",
+  "sleeve", "sleeves", "stand", "stands", "charger",
+  "cable", "cables", "accessory", "accessories"
+];
+
+function containsSearchTerm(text, term) {
+  const normalizedTerm = normalizeText(term);
+  if (!normalizedTerm) return false;
+
+  const variants = normalizedTerm.endsWith("s")
+    ? [normalizedTerm, normalizedTerm.slice(0, -1)]
+    : [normalizedTerm, `${normalizedTerm}s`];
+
+  return variants.some(variant =>
+    (` ${text} `).includes(` ${variant} `)
+  );
+}
+
+function matchesSearchQuery(product, query) {
   const search = normalizeText(query);
+  const productTypeText = normalizeText(
+    `${product.title} ${product.category || ""} ${product.productType || ""}`
+  );
+  const searchable = normalizeText([
+    product.title,
+    product.platform,
+    product.brand,
+    product.category,
+    product.color,
+    product.model,
+    product.size,
+    product.description
+  ].join(" "));
+  const requestedTypes = productTypeGroups.filter(group =>
+    group.some(term => containsSearchTerm(search, term))
+  );
+  const terms = getSearchTerms(query);
 
-  if (!product || !search) return false;
+  if (!search || !terms.length) return false;
 
-  // Strict category matching for earbuds and headphones.
-  const asksForAudio =
-    /\b(earbud|earbuds|earphone|earphones|headphone|headphones|headset)\b/.test(search);
-
-  if (asksForAudio) {
-    const isAudioProduct =
-      /\b(earbud|earbuds|earphone|earphones|headphone|headphones|headset)\b/.test(product);
-
-    const isUnrelatedProduct =
-      /\b(cotton|swab|swabs|paper stick|ear cleaning|ear cleaner|ear plug|ear plugs|earplug|earplugs)\b/.test(product);
-
-    if (!isAudioProduct || isUnrelatedProduct) return false;
-
-    if (
-      /\b(wireless|bluetooth)\b/.test(search) &&
-      !/\b(wireless|bluetooth|tws)\b/.test(product)
-    ) {
-      return false;
-    }
-
-    return true;
+  if (requestedTypes.length &&
+    !requestedTypes.every(group =>
+      group.some(term => containsSearchTerm(productTypeText, term))
+    )) {
+    return false;
   }
 
-  // For other searches, require every meaningful search term.
-  const ignored = new Set([
-    "the", "a", "an", "for", "and", "or", "with",
-    "in", "on", "of", "to", "buy", "online",
-    "best", "price", "product", "products"
-  ]);
+  if (requestedTypes.length &&
+    productTypeGroups.some(group =>
+      group.some(term => containsSearchTerm(
+        normalizeText(`${product.title} ${product.category || ""}`), term
+      )) &&
+      !group.some(term => containsSearchTerm(search, term))
+    )) {
+    return false;
+  }
 
-  const terms = search
-    .split(/\s+/)
-    .filter(term => term.length > 1 && !ignored.has(term));
+  if (requestedTypes.length &&
+    nonProductTypeTerms.some(term =>
+      containsSearchTerm(
+        normalizeText(`${product.title} ${product.category || ""}`),
+        term
+      ) && !containsSearchTerm(search, term)
+    )) {
+    return false;
+  }
 
-  return terms.length > 0 &&
-    terms.every(term => product.includes(term));
+  return terms.every(term => containsSearchTerm(searchable, term));
 }
 
 // Support common QuickCommerce response formats.
@@ -362,6 +404,12 @@ function normalizeProducts(payload) {
       return {
         title,
         platform,
+        brand: getTextField(item.brand),
+        category: getTextField(item.category),
+        color: getTextField(item.color),
+        model: getTextField(item.model),
+        size: getTextField(item.size),
+        description: getTextField(item.description),
         price,
         image,
         url
@@ -372,7 +420,7 @@ function normalizeProducts(payload) {
         product.title.length > 0 &&
         product.price !== null &&
         product.price > 0 &&
-        matchesSearchQuery(product.title, currentQuery)
+        matchesSearchQuery(product, currentQuery)
       );
     });
 }
@@ -459,7 +507,7 @@ function renderProducts() {
 
     showEmpty(
       "No matching products found",
-      "Try a different search. Only relevant products with valid prices are displayed."
+      "No exact matching products found. Try a different search."
     );
 
     return;
