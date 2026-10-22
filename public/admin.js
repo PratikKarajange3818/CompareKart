@@ -1,37 +1,53 @@
+"use strict";
+
 const form = document.getElementById("productForm");
 const productList = document.getElementById("productList");
 const message = document.getElementById("message");
-const adminKeyInput = document.getElementById("adminKey");
+const adminEmailInput = document.getElementById("adminEmail");
+const adminPasswordInput = document.getElementById("adminPassword");
 const connectButton = document.getElementById("connectBtn");
+const userSearchInput = document.getElementById("userSearch");
+const userSearchButton = document.getElementById("userSearchButton");
+const userTableBody = document.getElementById("userTableBody");
+const userStatus = document.getElementById("userStatus");
+const userCountBadge = document.getElementById("userCountBadge");
+const userPageLabel = document.getElementById("userPageLabel");
+const previousUsers = document.getElementById("previousUsers");
+const nextUsers = document.getElementById("nextUsers");
 
-let adminKey = sessionStorage.getItem("comparekartAdminKey") || "";
+let isAdminAuthenticated = false;
+let userPage = 1;
+let userTotalPages = 1;
+let userTotalCount = 0;
 
-if (adminKey) {
-  adminKeyInput.value = adminKey;
+function setMessage(text, isError = false) {
+  message.textContent = text;
+  message.classList.toggle("error", isError);
+}
+
+function setUserStatus(text, isError = false) {
+  userStatus.textContent = text;
+  userStatus.classList.toggle("error", isError);
 }
 
 async function api(url, options = {}) {
   const response = await fetch(url, {
     ...options,
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
-      "x-admin-key": adminKey,
       ...(options.headers || {})
     }
   });
-
   const contentType = response.headers.get("content-type") || "";
-
-  if (!contentType.includes("application/json")) {
-    throw new Error(
-      "The server returned HTML instead of JSON. Open http://localhost:3000/admin.html and check server.js."
-    );
-  }
-
-  const data = await response.json();
+  const data = contentType.includes("application/json")
+    ? await response.json()
+    : {};
 
   if (!response.ok) {
-    throw new Error(data.message || "Request failed");
+    const error = new Error(data.message || "Request failed.");
+    error.status = response.status;
+    throw error;
   }
 
   return data;
@@ -39,7 +55,6 @@ async function api(url, options = {}) {
 
 async function loadProducts() {
   const products = await api("/api/admin/products");
-
   productList.replaceChildren();
 
   if (products.length === 0) {
@@ -47,49 +62,37 @@ async function loadProducts() {
     return;
   }
 
-  products.forEach((product) => {
+  products.forEach(product => {
     const card = document.createElement("div");
     card.className = "catalogue-card";
 
     const title = document.createElement("h3");
     title.textContent = product.name;
-
     const brand = document.createElement("p");
     brand.textContent = "Brand: " + product.brand;
-
     const category = document.createElement("p");
     category.textContent = "Category: " + product.category;
-
     const prices = (product.offers || [])
-      .map((offer) => Number(offer.price))
-      .filter((price) => Number.isFinite(price) && price > 0);
-
+      .map(offer => Number(offer.price))
+      .filter(price => Number.isFinite(price) && price > 0);
     const price = document.createElement("p");
     price.textContent = prices.length
-      ? "Lowest price: ₹" +
-        Math.min(...prices).toLocaleString("en-IN")
+      ? "Lowest price: ₹" + Math.min(...prices).toLocaleString("en-IN")
       : "No price available";
-
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "Delete Product";
     deleteButton.className = "admin-button danger-admin-button";
 
     deleteButton.addEventListener("click", async () => {
-      if (!confirm("Delete " + product.name + "?")) {
-        return;
-      }
-
+      if (!confirm("Delete " + product.name + "?")) return;
       deleteButton.disabled = true;
 
       try {
-        await api("/api/admin/products/" + product._id, {
-          method: "DELETE"
-        });
-
-        message.textContent = "Product deleted successfully!";
+        await api("/api/admin/products/" + product._id, { method: "DELETE" });
+        setMessage("Product deleted successfully!");
         await loadProducts();
       } catch (error) {
-        message.textContent = error.message;
+        setMessage(error.message, true);
         deleteButton.disabled = false;
       }
     });
@@ -99,67 +102,154 @@ async function loadProducts() {
   });
 }
 
-async function connectAdmin() {
-  adminKey = adminKeyInput.value.trim();
+function renderUsers(users) {
+  userTableBody.replaceChildren();
 
-  if (!adminKey) {
-    message.textContent = "Please enter your admin key.";
+  if (users.length === 0) {
+    setUserStatus("No registered users match this search.");
+    return;
+  }
+
+  setUserStatus("");
+  users.forEach(user => {
+    const row = document.createElement("tr");
+    const id = document.createElement("td");
+    id.textContent = String(user.id);
+    id.className = "user-id-cell";
+    const name = document.createElement("td");
+    name.textContent = user.name;
+    const email = document.createElement("td");
+    email.textContent = user.email;
+    const registered = document.createElement("td");
+    registered.textContent = new Date(user.createdAt).toLocaleString();
+    const role = document.createElement("td");
+    role.textContent = user.role;
+    role.className = user.role === "admin" ? "admin-role" : "";
+    row.append(id, name, email, registered, role);
+    userTableBody.appendChild(row);
+  });
+}
+
+async function loadUsers() {
+  userSearchButton.disabled = true;
+  previousUsers.disabled = true;
+  nextUsers.disabled = true;
+  setUserStatus("Loading users...");
+
+  try {
+    const params = new URLSearchParams({
+      page: String(userPage),
+      limit: "10",
+      search: userSearchInput.value.trim()
+    });
+    const result = await api("/api/admin/users?" + params);
+    userTotalPages = Math.max(1, result.pagination.totalPages);
+    userTotalCount = result.pagination.totalUsers;
+    userPage = result.pagination.page;
+    const totalRegisteredUsers = result.stats?.totalRegisteredUsers ?? userTotalCount;
+    userCountBadge.textContent = `${totalRegisteredUsers} registered user${totalRegisteredUsers === 1 ? "" : "s"}`;
+    userPageLabel.textContent = `Page ${userPage} of ${userTotalPages}`;
+    previousUsers.disabled = userPage <= 1;
+    nextUsers.disabled = userPage >= userTotalPages;
+    renderUsers(result.data);
+  } catch (error) {
+    if (error.status === 401 || error.status === 403) {
+      isAdminAuthenticated = false;
+      setUserStatus(error.message, true);
+      setMessage("Administrator authorization is required.", true);
+    } else {
+      setUserStatus(error.message, true);
+    }
+  } finally {
+    userSearchButton.disabled = false;
+  }
+}
+
+async function connectAdmin() {
+  const email = adminEmailInput.value.trim();
+  const password = adminPasswordInput.value;
+
+  if (!email || !password) {
+    setMessage("Enter the administrator email and password.", true);
     return;
   }
 
   connectButton.disabled = true;
-  message.textContent = "Connecting to server...";
+  setMessage("Signing in and verifying administrator access...");
 
   try {
-    await loadProducts();
-    sessionStorage.removeItem("comparekartAdminKey");
-    message.textContent = "Admin connected successfully!";
+    const result = await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password })
+    });
+
+    if (result.user?.role !== "admin") {
+      throw new Error("This account is not authorized to access the admin panel.");
+    }
+
+    isAdminAuthenticated = true;
+    adminPasswordInput.value = "";
+    setMessage("Administrator access verified.");
+    await Promise.all([loadProducts(), loadUsers()]);
   } catch (error) {
-    adminKey = "";
-    message.textContent = error.message;
+    isAdminAuthenticated = false;
+    setMessage(error.message, true);
   } finally {
     connectButton.disabled = false;
   }
 }
 
 connectButton.addEventListener("click", connectAdmin);
-
-adminKeyInput.addEventListener("keydown", (event) => {
+adminPasswordInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") connectAdmin();
+});
+userSearchButton.addEventListener("click", () => {
+  userPage = 1;
+  loadUsers();
+});
+userSearchInput.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
-    connectAdmin();
+    userPage = 1;
+    loadUsers();
+  }
+});
+previousUsers.addEventListener("click", () => {
+  if (userPage > 1) {
+    userPage -= 1;
+    loadUsers();
+  }
+});
+nextUsers.addEventListener("click", () => {
+  if (userPage < userTotalPages) {
+    userPage += 1;
+    loadUsers();
   }
 });
 
-form.addEventListener("submit", async (event) => {
+form.addEventListener("submit", async event => {
   event.preventDefault();
 
-  if (!adminKey) {
-    message.textContent = "Connect as admin before adding products.";
+  if (!isAdminAuthenticated) {
+    setMessage("Sign in with an administrator account first.", true);
     return;
   }
 
   const formData = new FormData(form);
-
   const name = String(formData.get("name") || "").trim();
   const brand = String(formData.get("brand") || "").trim();
   const category = String(formData.get("category") || "");
   const price = Number(formData.get("price"));
 
-  if (
-    !name ||
-    !brand ||
-    !["Mobiles", "Laptops", "Audio"].includes(category) ||
-    !Number.isFinite(price) ||
-    price <= 0
-  ) {
-    message.textContent = "Please enter valid product details.";
+  if (!name || !brand || !["Mobiles", "Laptops", "Audio"].includes(category) ||
+      !Number.isFinite(price) || price <= 0) {
+    setMessage("Please enter valid product details.", true);
     return;
   }
 
   const submitButton = form.querySelector('button[type="submit"]');
   submitButton.disabled = true;
-  message.textContent = "Saving product...";
+  setMessage("Saving product...");
 
   try {
     await api("/api/admin/products", {
@@ -169,21 +259,14 @@ form.addEventListener("submit", async (event) => {
         brand,
         category,
         image: "",
-        offers: [
-          {
-            store: "Demo Store",
-            price,
-            url: "https://www.amazon.in/"
-          }
-        ]
+        offers: [{ store: "Demo Store", price, url: "https://www.amazon.in/" }]
       })
     });
-
     form.reset();
-    message.textContent = "Product saved successfully!";
+    setMessage("Product saved successfully!");
     await loadProducts();
   } catch (error) {
-    message.textContent = error.message;
+    setMessage(error.message, true);
   } finally {
     submitButton.disabled = false;
   }

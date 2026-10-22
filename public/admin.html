@@ -20,8 +20,8 @@
       </a>
       <div class="admin-heading">
         <span class="admin-eyebrow">CONTROL CENTER</span>
-        <h1>Product management</h1>
-        <p>Keep the CompareKart catalogue accurate and up to date.</p>
+        <h1>CompareKart management</h1>
+        <p>Manage the catalogue and review registered users securely.</p>
       </div>
       <a class="admin-home-link" href="/">View storefront <span aria-hidden="true">→</span></a>
     </div>
@@ -36,16 +36,20 @@
         <div>
           <span class="panel-kicker">SECURE ACCESS</span>
           <h2>Admin login</h2>
-          <p>Connect with your administrator key to manage catalogue products.</p>
+          <p>Sign in with a user account that has the verified administrator role.</p>
         </div>
       </div>
 
       <div class="login-controls">
         <div class="field">
-          <label for="adminKey">Admin key</label>
-          <input id="adminKey" type="password" placeholder="Enter your admin key" autocomplete="current-password">
+          <label for="adminEmail">Administrator email</label>
+          <input id="adminEmail" type="email" placeholder="Enter administrator email" autocomplete="email">
         </div>
-        <button class="admin-button primary-admin-button" type="button" id="connectBtn">Connect <span aria-hidden="true">→</span></button>
+        <div class="field">
+          <label for="adminPassword">Password</label>
+          <input id="adminPassword" type="password" placeholder="Enter your password" autocomplete="current-password">
+        </div>
+        <button class="admin-button primary-admin-button" type="button" id="connectBtn">Sign in <span aria-hidden="true">→</span></button>
       </div>
     </section>
 
@@ -110,6 +114,36 @@
         </div>
       </section>
     </div>
+
+    <section class="admin-panel user-management-panel">
+      <div class="panel-heading list-heading">
+        <div>
+          <span class="panel-kicker">ACCOUNTS</span>
+          <h2>User management</h2>
+          <p>Review registered CompareKart accounts. Sensitive authentication data is never displayed.</p>
+        </div>
+        <span id="userCountBadge" class="inventory-badge">0 users</span>
+      </div>
+      <div class="user-toolbar">
+        <label class="field user-search-field" for="userSearch">
+          <span>Search users</span>
+          <input id="userSearch" type="search" placeholder="Search by name or email" maxlength="100">
+        </label>
+        <button class="admin-button secondary-admin-button" type="button" id="userSearchButton">Search</button>
+      </div>
+      <div id="userStatus" class="user-status" role="status" aria-live="polite"></div>
+      <div class="user-table-wrap">
+        <table class="user-table">
+          <thead><tr><th>User ID</th><th>Name</th><th>Email</th><th>Registered</th><th>Role</th></tr></thead>
+          <tbody id="userTableBody"></tbody>
+        </table>
+      </div>
+      <div class="user-pagination">
+        <button class="admin-button secondary-admin-button" type="button" id="previousUsers">Previous</button>
+        <span id="userPageLabel">Page 1</span>
+        <button class="admin-button secondary-admin-button" type="button" id="nextUsers">Next</button>
+      </div>
+    </section>
 
     <a class="back-home-link" href="/">← Back to CompareKart home</a>
 

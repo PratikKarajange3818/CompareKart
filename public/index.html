@@ -24,7 +24,7 @@
       <a class="nav-link" href="#how-it-works">How It Works</a>
       <a class="nav-link" href="#about">About</a>
     </nav>
-    <a class="admin-link" href="/admin.html"><span aria-hidden="true">♙</span> Admin <span aria-hidden="true">→</span></a>
+    <button class="account-link" id="account-button" type="button">Login / Register <span aria-hidden="true">→</span></button>
   </header>
 
   <main>
@@ -130,9 +130,38 @@
   </main>
 
   <footer class="footer" id="about">
-    <div class="footer-main"><a class="brand footer-brand" href="#home"><span class="brand-icon">C</span><span>Compare<span class="brand-accent">Kart</span></span></a><p>Compare available offers and shop with confidence.</p><nav aria-label="Footer navigation"><a href="#home">Home</a><a href="#comparison">Compare Prices</a><a href="#how-it-works">How It Works</a><a href="/admin.html">Admin</a></nav></div>
+    <div class="footer-main"><a class="brand footer-brand" href="#home"><span class="brand-icon">C</span><span>Compare<span class="brand-accent">Kart</span></span></a><p>Compare available offers and shop with confidence.</p><nav aria-label="Footer navigation"><a href="#home">Home</a><a href="#comparison">Compare Prices</a><a href="#how-it-works">How It Works</a><button class="footer-account-link" id="footer-account-button" type="button">Login / Register</button></nav></div>
     <div class="footer-bottom"><span>© <span id="current-year"></span> CompareKart</span><span>Prices and availability can change. Verify the final price on the seller's website.</span></div>
   </footer>
+
+  <section id="auth-dialog" class="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title" hidden>
+    <div class="auth-card">
+      <button id="auth-close" class="auth-close" type="button" aria-label="Close account dialog">×</button>
+      <span class="section-kicker">YOUR COMPAREKART ACCOUNT</span>
+      <h2 id="auth-title">Welcome back</h2>
+      <p id="auth-description">Sign in to keep your account information secure.</p>
+      <div class="auth-tabs" role="tablist" aria-label="Account actions">
+        <button class="auth-tab active" id="login-tab" type="button" role="tab" aria-selected="true">Login</button>
+        <button class="auth-tab" id="register-tab" type="button" role="tab" aria-selected="false">Register</button>
+      </div>
+      <form id="login-form" class="auth-form">
+        <label class="auth-field">Email<input id="login-email" name="email" type="email" autocomplete="email" required maxlength="160"></label>
+        <label class="auth-field">Password<input id="login-password" name="password" type="password" autocomplete="current-password" required minlength="8"></label>
+        <button class="btn btn-primary auth-submit" type="submit">Login</button>
+        <p class="auth-switch">Don't have an account? <button id="show-register" type="button">Register</button></p>
+      </form>
+      <form id="register-form" class="auth-form" hidden>
+        <label class="auth-field">Full name<input id="register-name" name="name" type="text" autocomplete="name" required minlength="2" maxlength="80"></label>
+        <label class="auth-field">Email<input id="register-email" name="email" type="email" autocomplete="email" required maxlength="160"></label>
+        <label class="auth-field">Password<input id="register-password" name="password" type="password" autocomplete="new-password" required minlength="8"></label>
+        <label class="auth-field">Confirm password<input id="register-confirm-password" name="confirmPassword" type="password" autocomplete="new-password" required minlength="8"></label>
+        <button class="btn btn-primary auth-submit" type="submit">Create account</button>
+        <p class="auth-switch">Already have an account? <button id="show-login" type="button">Login</button></p>
+      </form>
+      <p id="auth-message" class="auth-message" role="status" aria-live="polite"></p>
+      <button id="logout-button" class="auth-logout" type="button" hidden>Log out</button>
+    </div>
+  </section>
 
   <button id="chatbot-toggle" class="chatbot-toggle" type="button" aria-controls="chatbot-panel" aria-expanded="false"><span class="chatbot-icon" aria-hidden="true">✦</span><span class="sr-only">Open CompareKart AI chat</span></button>
   <section id="chatbot-panel" class="chatbot-panel" aria-label="CompareKart AI chat" hidden>
@@ -141,5 +170,6 @@
     <div class="chatbot-suggestions" aria-label="Suggested questions"><span>QUICK QUESTIONS</span><button type="button" data-chat-question="What should I compare before buying a phone?">Compare a phone</button><button type="button" data-chat-question="What should I check before buying a laptop?">Buy a laptop</button></div>
     <form id="chatbot-form" class="chatbot-form"><label class="sr-only" for="chatbot-question">Ask CompareKart AI</label><textarea id="chatbot-question" rows="2" maxlength="2000" placeholder="Ask a shopping question..." required></textarea><button id="chatbot-send" class="btn btn-primary" type="submit">Send</button></form>
   </section>
+  <script src="/auth.js" defer></script>
 </body>
 </html>
